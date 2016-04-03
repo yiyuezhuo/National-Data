@@ -78,17 +78,18 @@ class TreeNode(object):
             
 
 class Downloader(object):
-    def __init__(self,tree,raw_root='raw'):
+    def __init__(self,tree,raw_root='raw',date='1978-2014'):
         self.tree=tree
         self.map_name=dict(tree.get_all_pair())
         self.map_json={}
         self.raw_root=raw_root
+        self.date=date
     def get_params(self,valuecode):
         params={'m':'QueryData','dbcode':'hgnd',
                 'rowcode':'zb','colcode':'sj',
                 'wds':[],
                 'dfwds':[{'wdcode':'zb','valuecode':None},
-                         {'wdcode':'sj','valuecode':'1978-2014'}],
+                         {'wdcode':'sj','valuecode':self.date}],
                 'k1':None}
         # requests can't deal tuple,list,dict correctly,I transform
         #them to string and replace ' -> " to solve it
@@ -172,8 +173,7 @@ class Document(object):
                 check_dir(path_t)
                 self.to_csv(node.id,os.path.join(*path_t)+'.csv',encoding=encoding)
                 
-
-        
+'''
 def json_to_dataframe(dic,origin_code=True):
     assert dic['returncode']==200
     returndata=dic['returndata']
@@ -195,9 +195,6 @@ def cache(downloader,root='raw'):
     for key,value in downloader.map_json.items():
         with open(os.path.join(root,key),'wb') as f:
             json.dump(value,f)
-
-def to_csv(json_dic):
-    pass
             
 def semicode(params):
     return {key:str(value).replace("'",'"') for key,value in params.items()}
@@ -222,10 +219,12 @@ def test_direct():
 def test(tree):
     downloader=Downloader(tree)
     return downloader.download_once(downloader.map_name.keys()[0])
+'''
+
+def run(args):
     
-def run():
     print 'init tree'
-    if os.path.isfile('tree'):
+    if os.path.isfile(args.raw):
         print 'init tree by cache'
         with open('tree','rb') as f:
             tree=pickle.load(f)
@@ -233,22 +232,39 @@ def run():
         print 'init tree by web'
         tree=TreeNode()
         tree.get_recur()
+        with open('tree','wb') as f:
+            print 'cache tree information...'
+            pickle.dump(tree,f)
+    
     print 'stat download file'
-    downloader=Downloader(tree)
+    downloader=Downloader(tree,raw_root=args.raw,date=args.date)
     downloader.download()
     print 'start transform JSON raw file to csv file'
-    doc=Document()
-    doc.to_csv_all(tree)
+    doc=Document(raw_root=args.raw)
+    doc.to_csv_all(tree,root=args.dest,encoding=args.encoding)
     print 'clear'
+    
+def CLI():
+    import argparse
+    parser = argparse.ArgumentParser(usage=u'python main.py --encoding utf-8 --date 1978-2014',
+                                     description=u"国家数据抓取器")
+    parser.add_argument('--type',default='year',help=u'抓取哪种类型的数据，目前没用')
+    parser.add_argument('--encoding',default='utf-8',help=u"输出的csv文件的编码,默认的UTF8可能对Excel不友好")
+    parser.add_argument('--date',default='1978-2014',help=u'请求的数据区间如 --date 1978-2014')
+    parser.add_argument('--dest',default='data',help=u"输出目录")
+    parser.add_argument('--raw',defualt='raw',help=u'中间json文件保存目录')
+    
+    args=parser.parse_args()
+    run(args)
+    
+
     
 if __name__=="__main__":
     import sys
-    if len(sys.argv)>=2:
-        if sys.argv[1]=='year':
-            if os.path.isdir('raw'):
-                os.mkdir('raw')
-            run()
-    
+    if len(sys.argv)<=1:
+        print 'DEBUG MODE'
+    else:
+        CLI()
 
 '''
 tree=TreeNode()
@@ -259,7 +275,7 @@ tree.display()
 '''
 with open('tree','rb') as f:
     tree=pickle.load(f)
-downloader=Downloader(tree)
+downloader=Downloader(tree,date='1978-2014')
 downloader.download()
 doc=Document()
 '''
