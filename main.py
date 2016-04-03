@@ -11,6 +11,7 @@ import json
 import os
 import pickle
 import pandas as pd
+import numpy as np
 
 url='http://data.stats.gov.cn/easyquery.htm'
 s='''id:zb
@@ -152,7 +153,7 @@ class Document(object):
             zb,sj=sd['zb'],sd['sj']
             if not origin_code:
                 zb,sj=zb_wd[zb],sj_wd[sj]
-            rd[(sj,zb)]=node['data']['data']
+            rd[(sj,zb)]=node['data']['data'] if node['data']['hasdata'] else np.NaN
         df=pd.Series(rd).unstack()
         return df
     def get_dataframe(self,name,origin_code=False):
@@ -224,7 +225,7 @@ def test(tree):
 def run(args):
     
     print 'init tree'
-    if os.path.isfile(args.raw):
+    if os.path.isfile(args.tree):
         print 'init tree by cache'
         with open('tree','rb') as f:
             tree=pickle.load(f)
@@ -232,7 +233,7 @@ def run(args):
         print 'init tree by web'
         tree=TreeNode()
         tree.get_recur()
-        with open('tree','wb') as f:
+        with open(args.tree,'wb') as f:
             print 'cache tree information...'
             pickle.dump(tree,f)
     
@@ -252,7 +253,8 @@ def CLI():
     parser.add_argument('--encoding',default='utf-8',help=u"输出的csv文件的编码,默认的UTF8可能对Excel不友好")
     parser.add_argument('--date',default='1978-2014',help=u'请求的数据区间如 --date 1978-2014')
     parser.add_argument('--dest',default='data',help=u"输出目录")
-    parser.add_argument('--raw',defualt='raw',help=u'中间json文件保存目录')
+    parser.add_argument('--raw',default='raw',help=u'中间json文件保存目录')
+    parser.add_argument('--tree',default='tree',help=u'tree文件的缓存地址,默认为tree')
     
     args=parser.parse_args()
     run(args)
@@ -263,6 +265,7 @@ if __name__=="__main__":
     import sys
     if len(sys.argv)<=1:
         print 'DEBUG MODE'
+        print 'IF YOU WANT USE IT IN CLI YOU NEED A ARGUMENT TO ACTIVATE IT'
     else:
         CLI()
 
