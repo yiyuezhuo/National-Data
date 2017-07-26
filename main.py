@@ -24,7 +24,8 @@ dic=dict(term.split(':') for term in s.split('\n'))
 res=requests.get(url,params=dic)
 
 def check_dir(name_list):
-    if type(name_list) in [str,unicode]:
+    #if type(name_list) in [str,unicode]:
+    if type(name_list) in [str,bytes]:
         name_list=name_list.replace('\\','/').split('/')
     now_path=name_list[0]
     for name in name_list[1:]:
@@ -44,7 +45,7 @@ class TreeNode(object):
         self.leaf=None
     def get(self,force=False,verbose=True):
         if verbose:
-            print 'getting',self.id,self.name
+            print('getting',self.id,self.name)
         if force or self.data==None:
             params=TreeNode.params.copy()
             params['id']=self.id
@@ -65,7 +66,7 @@ class TreeNode(object):
         rd['children']=children
         return rd
     def display(self,level=0):
-        print ' '*level+self.name+' '+self.id
+        print(' '*level+self.name+' '+self.id)
         for child in self.children:
             child.display(level+1)
     def get_all_pair(self):
@@ -109,9 +110,13 @@ class Downloader(object):
     def valuecode_path(self,valuecode):
         return os.path.join(self.raw_root,valuecode)
     def cache(self,valuecode,content):
+        '''
         f=open(self.valuecode_path(valuecode),'wb')
         f.write(content)
         f.close()
+        '''
+        with open(self.valuecode_path(valuecode),'wb') as f:
+            f.write(content)
     def is_exists(self,valuecode,to_json=False):
         if to_json:
             return self.map_json.has_key(valuecode)
@@ -122,7 +127,7 @@ class Downloader(object):
         length=len(self.map_name)
         for index,valuecode in enumerate(self.map_name.keys()):
             if verbose:
-                print 'get data',valuecode,self.map_name[valuecode],'clear',float(index)/length
+                print('get data',valuecode,self.map_name[valuecode],'clear',float(index)/length)
             if not self.is_exists(valuecode,to_json=to_json):
                 res_obj=self.download_once(valuecode,to_json=to_json)
                 if to_json:
@@ -135,7 +140,7 @@ class Document(object):
         self.raw_root=raw_root
     def get(self,name):
         path=os.path.join(self.raw_root,name)
-        with open(path,'rb') as f:
+        with open(path,'r', encoding = 'utf8') as f:
             content=f.read()
         return content
     def get_json(self,name):
@@ -224,34 +229,39 @@ def test(tree):
 
 def run(args):
     
-    print 'init tree'
+    print('init tree')
     if os.path.isfile(args.tree):
-        print 'init tree by cache'
-        with open('tree','rb') as f:
+        print('init tree by cache')
+        with open(args.tree,'rb') as f:
             tree=pickle.load(f)
     else:
-        print 'init tree by web'
+        print('init tree by web')
         tree=TreeNode()
         tree.get_recur()
         with open(args.tree,'wb') as f:
-            print 'cache tree information...'
+            print('cache tree information...')
             pickle.dump(tree,f)
+            
+    if not os.path.isdir(args.raw):
+        os.mkdir(args.raw)
+    if not os.path.isdir(args.dest):
+        os.mkdir(args.dest)
     
-    print 'stat download file'
+    print('start download file')
     downloader=Downloader(tree,raw_root=args.raw,date=args.date)
     downloader.download()
-    print 'start transform JSON raw file to csv file'
+    print('start transform JSON raw file to csv file')
     doc=Document(raw_root=args.raw)
     doc.to_csv_all(tree,root=args.dest,encoding=args.encoding)
-    print 'clear'
+    print('clear')
     
 def CLI():
     import argparse
-    parser = argparse.ArgumentParser(usage=u'python main.py --encoding utf-8 --date 1978-2014',
+    parser = argparse.ArgumentParser(usage=u'python main.py --encoding utf-8 --date 1978-2015 --dest new_data --raw new_tree',
                                      description=u"国家数据抓取器")
     parser.add_argument('--type',default='year',help=u'抓取哪种类型的数据，目前没用')
     parser.add_argument('--encoding',default='utf-8',help=u"输出的csv文件的编码,默认的UTF8可能对Excel不友好")
-    parser.add_argument('--date',default='1978-2014',help=u'请求的数据区间如 --date 1978-2014')
+    parser.add_argument('--date',default='1978-2015',help=u'请求的数据区间如 --date 1978-2015')
     parser.add_argument('--dest',default='data',help=u"输出目录")
     parser.add_argument('--raw',default='raw',help=u'中间json文件保存目录')
     parser.add_argument('--tree',default='tree',help=u'tree文件的缓存地址,默认为tree')
@@ -264,8 +274,21 @@ def CLI():
 if __name__=="__main__":
     import sys
     if len(sys.argv)<=1:
-        print 'DEBUG MODE'
-        print 'IF YOU WANT USE IT IN CLI YOU NEED A ARGUMENT TO ACTIVATE IT'
+        print('DEBUG MODE')
+        print('IF YOU WANT USE IT IN CLI, YOU NEED A ARGUMENT TO ACTIVATE IT')
+        
+        # It provide a helper varible to support debug 
+        class Args(object):
+            pass
+        args = Args()
+        args.type = 'year'
+        args.encoding = 'utf-8'
+        #args.date = '1978-2014'
+        args.date = '1978-2015'
+        args.dest = 'data_test'
+        args.raw = 'raw_test'
+        args.tree = 'tree_test'
+        #run(args)
     else:
         CLI()
 
