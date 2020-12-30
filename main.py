@@ -12,8 +12,13 @@ import os
 import pickle
 import pandas as pd
 import numpy as np
+import warnings
 
-url='http://data.stats.gov.cn/easyquery.htm'
+warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made to host")
+
+# url='http://data.stats.gov.cn/easyquery.htm'
+url='https://data.stats.gov.cn/easyquery.htm'
+
 s='''id:zb
 dbcode:hgnd
 wdcode:zb
@@ -21,7 +26,19 @@ m:getTree'''
 
 dic=dict(term.split(':') for term in s.split('\n'))
 
-res=requests.get(url,params=dic)
+sess = requests.Session()
+
+def tree_node_get(url, data):
+    # The website have replace `get` with `post`.
+    # Also, the website use problematic https, so we just disable verifying.
+    warnings
+    return sess.post(url, data=data, verify=False)
+
+def downloader_get(url, params):
+    return sess.get(url, params=params, verify=False)
+
+# res=requests.get(url,params=dic)
+res=tree_node_get(url, dic)
 
 def check_dir(name_list):
     #if type(name_list) in [str,unicode]:
@@ -34,7 +51,8 @@ def check_dir(name_list):
         now_path=os.path.join(now_path,name)
 
 class TreeNode(object):
-    url='http://data.stats.gov.cn/easyquery.htm'
+    # url='http://data.stats.gov.cn/easyquery.htm'
+    url=url
     params={'id':'zb','dbcode':'hgnd','wdcode':'zb','m':'getTree'}
     def __init__(self,iid='zb',name='zb',data_me=None):
         self.id=iid
@@ -49,7 +67,8 @@ class TreeNode(object):
         if force or self.data==None:
             params=TreeNode.params.copy()
             params['id']=self.id
-            res=requests.get(TreeNode.url,params=params)
+            # res=requests.get(TreeNode.url,params=params)
+            res=tree_node_get(TreeNode.url, params)
             self.data=res.json()
             for data in self.data:
                 self.children.append(TreeNode(iid=data['id'],name=data['name'],
@@ -100,9 +119,10 @@ class Downloader(object):
         rp={key:str(value).replace("'",'"') for key,value in params.items()}
         return rp
     def download_once(self,valuecode,to_json=False):
-        url='http://data.stats.gov.cn/easyquery.htm'
+        #url='http://data.stats.gov.cn/easyquery.htm'
         params=self.get_params(valuecode)
-        res=requests.get(url,params=params)
+        # res=requests.get(url,params=params)
+        res=downloader_get(url, params)
         if to_json:
             return res.json()
         else:
